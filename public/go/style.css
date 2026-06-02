@@ -1,0 +1,75 @@
+body {
+    background-color: #330d2f;
+    color: white;
+    font-family: Arial, Helvetica, sans-serif;
+    background: radial-gradient(#85144a, #330d2f);
+    background-size: 400% 400%;
+    height: 100vh;
+    animation: gradient 15s ease infinite;
+}
+
+.blur1 {
+    font-size: 30px;
+    margin-left: 50px;
+    filter: blur(100px);
+    animation: unblur 2s cubic-bezier(0.85, 0, 0.15, 1) forwards;
+    animation-delay: 0s, 2s;
+}
+
+.blur2 {
+    margin-left: 30px;
+    filter: blur(100px);
+    animation: unblur 2s cubic-bezier(0.85, 0, 0.15, 1) forwards;
+    animation-delay: 0.05s;
+}
+
+.headers{
+    margin-top: 50px;
+    text-shadow: 0 0 5px rgb(252, 177, 255), 0 0 15px rgb(252, 177, 255);
+    animation: wiggle 0.5s linear infinite;
+    animation-delay: 0.6s;
+}
+
+.contents{
+    margin-top: -25px;
+    margin-left: 75px;
+    font-size: 20px;
+}
+
+.contents a{
+    color: white;
+    text-decoration: none;
+    transition: all 0.2s ease-in-out;
+}
+
+.contents a:hover{
+    letter-spacing: 3px;
+    transform: skewX(20deg);
+}
+
+@keyframes unblur {
+    from {
+      filter: blur(50px);
+    }
+    to {
+      filter: blur(0);
+    }
+}
+
+@keyframes wiggle {
+    0% { text-shadow: 0 0 5px rgb(252, 177, 255), 0 0 15px rgb(252, 177, 255);}
+    50% { text-shadow: 0 0 8px rgb(252, 177, 255), 0 0 20px rgb(252, 177, 255);}
+  100% { text-shadow: 0 0 5px rgb(252, 177, 255), 0 0 15px rgb(252, 177, 255);}
+}
+
+@keyframes gradient {
+    0% {
+		background-position: 0% 50%;
+	}
+	50% {
+		background-position: 100% 50%;
+	}
+	100% {
+		background-position: 0% 50%;
+	}
+}

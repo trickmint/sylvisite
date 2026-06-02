@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>/go</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+    <style>
+        .collapsible {
+        background-color: #330d2f;
+        color: white;
+        cursor: pointer;
+        padding: 18px;
+        width: 100%;
+        border: none;
+        text-align: left;
+        outline: none;
+        font-size: 15px;
+        width: fit-content;
+        border-radius: 8px 8px;
+        transition: background-color 0.15s ease-in-out, border-radius 0.05s linear;
+        }
+
+        .collapsible:hover {
+        transition: background-color 0.15s ease-in-out;
+        background-color: #551a3b;
+        }
+
+        .active {
+        background-color: #7b2555;
+        min-width: min-content;
+        border-radius: 8px 8px 0px 0px;
+        }
+
+        .content {
+        padding: 18px 18px;
+        display: none;
+        overflow: hidden;
+        background-color: #551a3b;
+        max-width:fit-content;
+        }
+    </style>
+</head>
+<body>
+    <audio src="assets/wii_u_menu-in_use.mp3" id="menumusic" loop>
+        Your browser does not support the audio element.
+    </audio>
+
+    <div class="headers">
+        <h2 style="font-size: 50px" class="blur1"><span id="welcome">hi sylvie!</span></b><br>
+        <i style="font-size: 30px;" class="blur2">what to do today...</i></h2>
+    </div>
+
+    <div class="contents">
+        <button type="button" class="collapsible">wwwaaa</button>
+        <div class="content">
+            <a href="steam://rungameid/13647909575561576448">template, bloxstrap</a>
+        </div>   
+    </div>
+    <script>
+        // check if it's my birthday :3
+        var month = new Date();
+        var isBirthday = false;
+        if (month.getMonth() == 10 && month.getDate() == 29){
+            console.log("sylvie's birthday is today!");
+            isBirthday = true;
+        }
+        var audio = document.getElementById("menumusic");
+        var msrc = "assets/wii_u_menu-in_use.mp3";
+        var bdsrc = "assets/wii_u_menu-birthday.mp3";
+        if(isBirthday){
+            document.getElementById("welcome").innerHTML = "happy birthday, sylvie!!!";
+            audio.src = bdsrc;
+        }
+        audio.load();
+        audio.play();
+    </script>
+    <script>
+        var coll = document.getElementsByClassName("collapsible");
+        var i;
+
+        for (i = 0; i < coll.length; i++) {
+        coll[i].addEventListener("click", function() {
+            this.classList.toggle("active");
+            var content = this.nextElementSibling;
+            if (content.style.display === "block") {
+            content.style.display = "none";
+            } else {
+            content.style.display = "block";
+            }
+        });
+        }
+    </script>
+</body>
+</html>
