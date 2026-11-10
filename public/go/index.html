@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#330d2f">
+    <title>/go — home</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/x-icon" href="../favicon.ico">
+</head>
+<body>
+    <audio id="menu-music" loop preload="metadata">
+        Your browser does not support background audio.
+    </audio>
+
+    <main class="page-shell">
+        <header class="site-header">
+            <div>
+                <h1><span id="welcome" class="blur1">hi sylvie!</span></h1>
+                <p class="subtitle blur2">what to do today...</p>
+            </div>
+            <div class="header-actions" aria-label="Page controls">
+                <button class="icon-button" id="music-toggle" type="button" aria-pressed="false">
+                    <span aria-hidden="true" id="music-icon">○</span>
+                    <span id="music-label">music</span>
+                </button>
+                <button class="icon-button" id="manage-launchers" type="button">
+                    <span aria-hidden="true">＋</span> manage launchers
+                </button>
+            </div>
+        </header>
+
+        <section class="favorites-section" aria-labelledby="favorites-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">quick access</p>
+                    <h2 id="favorites-heading">favorites</h2>
+                </div>
+                <span class="count-pill" id="favorite-count">0</span>
+            </div>
+            <div class="launcher-grid" id="favorites-grid"></div>
+            <p class="empty-state" id="favorites-empty" hidden>No favorites yet. Add one below and star it for quick access.</p>
+        </section>
+
+        <section class="categories-section" aria-labelledby="categories-heading">
+            <div class="section-heading">
+                <div>
+                    <p class="eyebrow">everything else</p>
+                    <h2 id="categories-heading">launchers</h2>
+                </div>
+            </div>
+            <div id="categories"></div>
+        </section>
+    </main>
+
+    <dialog id="launcher-dialog">
+        <form id="launcher-form" method="dialog">
+            <div class="dialog-heading">
+                <div>
+                    <p class="eyebrow">customize your launchpad</p>
+                    <h2 id="dialog-title">add launcher</h2>
+                </div>
+                <button class="close-button" id="close-dialog" type="button" aria-label="Close dialog">×</button>
+            </div>
+            <input id="launcher-id" type="hidden">
+            <label>
+                Name
+                <input id="launcher-name" name="name" type="text" maxlength="40" required autocomplete="off" placeholder="my game">
+            </label>
+            <label>
+                Link
+                <input id="launcher-url" name="url" type="url" required placeholder="steam://rungameid/...">
+            </label>
+            <p class="field-help">Steam links work when Steam is installed. You can also use regular https:// links.</p>
+            <div class="form-row">
+                <label>
+                    Category
+                    <input id="launcher-category" name="category" type="text" maxlength="30" required placeholder="games">
+                </label>
+                <label>
+                    Icon
+                    <input id="launcher-icon" name="icon" type="hidden" value="🌟">
+                    <button class="emoji-picker-toggle" id="emoji-picker-toggle" type="button"
+                        aria-expanded="false" aria-controls="emoji-picker-options">🌟 <span>choose emoji</span></button>
+                    <span class="emoji-picker-options" id="emoji-picker-options" role="listbox"
+                        aria-label="Launcher icon choices"></span>
+                </label>
+            </div>
+            <label class="checkbox-label">
+                <input id="launcher-favorite" name="favorite" type="checkbox">
+                <span>Show in favorites</span>
+            </label>
+            <p class="form-error" id="form-error" role="alert" hidden></p>
+            <div class="dialog-actions">
+                <button class="text-button danger-button" id="delete-launcher" type="button" hidden>delete</button>
+                <span></span>
+                <button class="text-button" id="cancel-dialog" type="button">cancel</button>
+                <button class="primary-button" type="submit">save launcher</button>
+            </div>
+        </form>
+    </dialog>
+
+    <script>
+        const defaultLaunchers = [
+            {
+                id: "template-bloxstrap",
+                name: "template, bloxstrap",
+                url: "steam://rungameid/13647909575561576448",
+                category: "games",
+                icon: "🌟",
+                favorite: true
+            }
+        ];
+        const launcherStorageKey = "sylvisite-go-launchers";
+        const musicStorageKey = "sylvisite-go-music-muted";
+        const launcherIcons = [
+            "🌟", "🎮", "🕹️", "👾", "🎲", "🧩", "🏆", "⚔️", "🛡️", "🚀",
+            "🎯", "🧙", "🐉", "👻", "🤖", "🧱", "🎨", "🎵", "🎧", "🎤",
+            "📻", "📺", "🎬", "📷", "🖼️", "🌐", "💬", "📧", "📱", "💻",
+            "⌨️", "🖱️", "🛠️", "⚙️", "🔧", "🔨", "🧰", "🧪", "📁", "📂",
+            "📝", "📚", "🔖", "🔍", "💡", "🔗", "⭐", "🌟", "💖", "🔥",
+            "🌈", "🌙", "☀️", "☁️", "🌸", "🍀", "🌻", "🐱", "🐶", "🦊",
+            "🍎", "🍕", "☕", "🍵", "🥤", "🏠", "🗺️", "✈️", "🚗", "🚲"
+        ];
+        const menuMusic = document.getElementById("menu-music");
+        const dialog = document.getElementById("launcher-dialog");
+        const form = document.getElementById("launcher-form");
+        let emojiPickerRendered = false;
+        let launchers = loadLaunchers();
+
+        function loadLaunchers() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(launcherStorageKey));
+                return Array.isArray(saved) ? saved : structuredClone(defaultLaunchers);
+            } catch (error) {
+                console.warn("Could not load saved launchers.", error);
+                return structuredClone(defaultLaunchers);
+            }
+        }
+
+        function saveLaunchers() {
+            localStorage.setItem(launcherStorageKey, JSON.stringify(launchers));
+        }
+
+        function renderEmojiPicker() {
+            if (emojiPickerRendered) return;
+            const picker = document.getElementById("emoji-picker-options");
+            const fragment = document.createDocumentFragment();
+            launcherIcons.forEach((icon) => {
+                const option = document.createElement("button");
+                option.type = "button";
+                option.className = "emoji-option";
+                option.textContent = icon;
+                option.setAttribute("role", "option");
+                option.setAttribute("aria-label", `Use ${icon} as launcher icon`);
+                option.dataset.icon = icon;
+                fragment.append(option);
+            });
+            picker.replaceChildren(fragment);
+            emojiPickerRendered = true;
+        }
+
+        function setSelectedIcon(icon) {
+            const selectedIcon = launcherIcons.includes(icon) ? icon : "🌟";
+            document.getElementById("launcher-icon").value = selectedIcon;
+            document.getElementById("emoji-picker-toggle").firstChild.textContent = `${selectedIcon} `;
+            document.querySelectorAll(".emoji-option").forEach((option) => {
+                option.classList.toggle("is-selected", option.dataset.icon === selectedIcon);
+                option.setAttribute("aria-selected", String(option.dataset.icon === selectedIcon));
+            });
+        }
+
+        function makeLauncherCard(launcher) {
+            const card = document.createElement("article");
+            card.className = "launcher-card";
+            card.innerHTML = `
+                <a href="${escapeAttribute(launcher.url)}">
+                    <span class="launcher-icon" aria-hidden="true">${escapeHtml(launcherIcons.includes(launcher.icon) ? launcher.icon : "🌟")}</span>
+                    <span class="launcher-name">${escapeHtml(launcher.name)}</span>
+                </a>
+                <button class="edit-button" type="button" aria-label="Edit ${escapeAttribute(launcher.name)}"
+                    data-action="edit" data-id="${launcher.id}">edit</button>
+                <button class="favorite-button ${launcher.favorite ? "is-favorite" : ""}" type="button"
+                    aria-label="${launcher.favorite ? "Remove from" : "Add to"} favorites"
+                    aria-pressed="${launcher.favorite}" data-action="favorite" data-id="${launcher.id}">★</button>`;
+            return card;
+        }
+
+        function renderLaunchers() {
+            const favoritesGrid = document.getElementById("favorites-grid");
+            const favorites = launchers.filter((launcher) => launcher.favorite);
+            favoritesGrid.replaceChildren(...favorites.map(makeLauncherCard));
+            document.getElementById("favorite-count").textContent = favorites.length;
+            document.getElementById("favorites-empty").hidden = favorites.length > 0;
+
+            const categories = document.getElementById("categories");
+            const grouped = launchers.reduce((groups, launcher) => {
+                const category = launcher.category.trim() || "uncategorized";
+                (groups[category] ||= []).push(launcher);
+                return groups;
+            }, {});
+            const sortedCategories = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
+            categories.replaceChildren(...sortedCategories.map(([category, items], categoryIndex) => {
+                const section = document.createElement("details");
+                section.className = "category";
+                section.open = true;
+                section.innerHTML = `<summary><span>${escapeHtml(category)}</span><span class="category-count">${items.length}</span></summary>`;
+                const grid = document.createElement("div");
+                grid.className = "launcher-grid category-grid";
+                grid.append(...items.map(makeLauncherCard));
+                if (categoryIndex === sortedCategories.length - 1) {
+                    grid.append(makeAddLauncherButton());
+                }
+                section.append(grid);
+                return section;
+            }));
+            if (sortedCategories.length === 0) categories.append(makeAddLauncherButton());
+        }
+
+        function makeAddLauncherButton() {
+            const button = document.createElement("button");
+            button.className = "add-launcher-button";
+            button.type = "button";
+            button.setAttribute("aria-label", "Add launcher");
+            button.textContent = "+";
+            button.addEventListener("click", () => openEditor());
+            return button;
+        }
+
+        function escapeHtml(value) {
+            const element = document.createElement("span");
+            element.textContent = value;
+            return element.innerHTML;
+        }
+
+        function escapeAttribute(value) {
+            return escapeHtml(value).replace(/"/g, "&quot;");
+        }
+
+        function openEditor(launcher) {
+            form.reset();
+            document.getElementById("emoji-picker-options").classList.remove("is-open");
+            document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", "false");
+            document.getElementById("launcher-id").value = launcher?.id || "";
+            document.getElementById("launcher-name").value = launcher?.name || "";
+            document.getElementById("launcher-url").value = launcher?.url || "";
+            document.getElementById("launcher-category").value = launcher?.category || "games";
+            const icon = launcherIcons.includes(launcher?.icon) ? launcher.icon : "🌟";
+            setSelectedIcon(icon);
+            document.getElementById("launcher-favorite").checked = launcher?.favorite || false;
+            document.getElementById("dialog-title").textContent = launcher ? "edit launcher" : "add launcher";
+            document.getElementById("delete-launcher").hidden = !launcher;
+            document.getElementById("form-error").hidden = true;
+            dialog.showModal();
+            document.getElementById("launcher-name").focus();
+        }
+
+        function closeEditor() {
+            document.getElementById("emoji-picker-options").classList.remove("is-open");
+            document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", "false");
+            if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+            dialog.close();
+        }
+
+        document.addEventListener("click", (event) => {
+            const iconOption = event.target.closest("[data-icon]");
+            if (iconOption) {
+                setSelectedIcon(iconOption.dataset.icon);
+                document.getElementById("emoji-picker-options").classList.remove("is-open");
+                document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", "false");
+                return;
+            }
+            if (!event.target.closest(".emoji-picker-toggle, .emoji-picker-options")) {
+                document.getElementById("emoji-picker-options").classList.remove("is-open");
+                document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", "false");
+            }
+            const editButton = event.target.closest("[data-action='edit']");
+            if (editButton) {
+                const launcher = launchers.find((item) => item.id === editButton.dataset.id);
+                if (launcher) openEditor(launcher);
+                return;
+            }
+            const favoriteButton = event.target.closest("[data-action='favorite']");
+            if (!favoriteButton) return;
+            const launcher = launchers.find((item) => item.id === favoriteButton.dataset.id);
+            if (!launcher) return;
+            launcher.favorite = !launcher.favorite;
+            saveLaunchers();
+            renderLaunchers();
+        });
+
+        document.getElementById("emoji-picker-toggle").addEventListener("click", () => {
+            const picker = document.getElementById("emoji-picker-options");
+            renderEmojiPicker();
+            const isOpen = picker.classList.toggle("is-open");
+            document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", String(isOpen));
+        });
+        document.getElementById("manage-launchers").addEventListener("click", () => openEditor());
+        document.getElementById("cancel-dialog").addEventListener("click", closeEditor);
+        document.getElementById("close-dialog").addEventListener("click", closeEditor);
+        dialog.addEventListener("click", (event) => {
+            if (event.target === dialog) closeEditor();
+        });
+
+        form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const id = document.getElementById("launcher-id").value || `launcher-${Date.now()}`;
+            const name = document.getElementById("launcher-name").value.trim();
+            const url = document.getElementById("launcher-url").value.trim();
+            const category = document.getElementById("launcher-category").value.trim();
+            const urlIsAllowed = /^(https?:|steam:)/i.test(url);
+            if (!name || !category || !urlIsAllowed) {
+                const error = document.getElementById("form-error");
+                error.textContent = "Please enter a name, category, and an https:// or steam:// link.";
+                error.hidden = false;
+                return;
+            }
+            const launcher = {
+                id,
+                name,
+                url,
+                category,
+                icon: launcherIcons.includes(document.getElementById("launcher-icon").value)
+                    ? document.getElementById("launcher-icon").value
+                    : "🌟",
+                favorite: document.getElementById("launcher-favorite").checked
+            };
+            const existingIndex = launchers.findIndex((item) => item.id === id);
+            if (existingIndex >= 0) launchers[existingIndex] = launcher;
+            else launchers.push(launcher);
+            saveLaunchers();
+            renderLaunchers();
+            closeEditor();
+        });
+
+        document.getElementById("delete-launcher").addEventListener("click", () => {
+            const id = document.getElementById("launcher-id").value;
+            if (!id || !confirm("Delete this launcher?")) return;
+            launchers = launchers.filter((launcher) => launcher.id !== id);
+            saveLaunchers();
+            renderLaunchers();
+            closeEditor();
+        });
+
+        function setMusicState(muted) {
+            menuMusic.muted = muted;
+            document.getElementById("music-toggle").setAttribute("aria-pressed", String(muted));
+            document.getElementById("music-icon").textContent = muted ? "×" : "○";
+            document.getElementById("music-label").textContent = muted ? "music" : "music";
+            localStorage.setItem(musicStorageKey, String(muted));
+        }
+
+        document.getElementById("music-toggle").addEventListener("click", () => {
+            setMusicState(!menuMusic.muted);
+            if (!menuMusic.muted) menuMusic.play().catch(() => {});
+        });
+
+        const today = new Date();
+        const isBirthday = today.getMonth() === 10 && today.getDate() === 29;
+        document.getElementById("welcome").textContent = isBirthday ? "hbd, sylvie!!!" : "hi sylvie!";
+        menuMusic.src = isBirthday ? "assets/wii_u_menu-birthday.mp3" : "assets/wii_u_menu-in_use.mp3";
+        const savedMuteState = localStorage.getItem(musicStorageKey) === "true";
+        setMusicState(savedMuteState);
+        menuMusic.play().catch(() => {
+            if (!savedMuteState) {
+                document.getElementById("music-label").textContent = "click for music";
+            }
+        });
+        renderLaunchers();
+    </script>
+</body>
+</html>
