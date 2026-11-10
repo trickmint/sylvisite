@@ -131,6 +131,7 @@
         let categoryOrder = loadCategoryOrder();
         let favoriteOrder = loadFavoriteOrder();
         let editMode = false;
+        let shiftHeld = false;
 
         function loadLaunchers() {
             try {
@@ -192,6 +193,14 @@
             editButton.setAttribute("aria-pressed", String(editMode));
             document.getElementById("edit-launchers-label").textContent = editMode ? "done editing" : "edit launchers";
             renderLaunchers();
+        }
+
+        function setShiftHeld(held) {
+            shiftHeld = held;
+            document.body.classList.toggle("shift-held", shiftHeld);
+            document.querySelectorAll(".category-move-button").forEach((button) => {
+                button.hidden = !shiftHeld;
+            });
         }
 
         function getOrderedCategories(grouped) {
@@ -286,10 +295,10 @@
                 section.dataset.category = category;
                 section.innerHTML = `
                     <summary>
-                        <span class="category-title"><span class="drag-handle" aria-hidden="true">⠿</span>${escapeHtml(category)}</span>
+                        <span class="category-title"><span class="drag-handle" hidden aria-hidden="true">⠿</span>${escapeHtml(category)}</span>
                         <span class="category-actions">
-                            <button class="category-move-button" type="button" data-category-action="up" aria-label="Move ${escapeAttribute(category)} up">↑</button>
-                            <button class="category-move-button" type="button" data-category-action="down" aria-label="Move ${escapeAttribute(category)} down">↓</button>
+                            <button class="category-move-button" hidden type="button" data-category-action="up" aria-label="Move ${escapeAttribute(category)} up">↑</button>
+                            <button class="category-move-button" hidden type="button" data-category-action="down" aria-label="Move ${escapeAttribute(category)} down">↓</button>
                             <span class="category-count">${items.length}</span>
                         </span>
                     </summary>`;
@@ -298,6 +307,7 @@
                 grid.append(...items.map(makeLauncherCard));
                 grid.append(makeAddLauncherButton(category));
                 section.append(grid);
+                section.querySelector(".drag-handle").hidden = !editMode;
                 return section;
             }));
             if (orderedCategories.length === 0) categories.append(makeAddLauncherButton());
@@ -472,7 +482,7 @@
         });
 
         document.addEventListener("keydown", (event) => {
-            if (event.key === "Shift") document.body.classList.add("shift-held");
+            if (event.key === "Shift") setShiftHeld(true);
             if (!event.repeat && event.shiftKey && event.key.toLowerCase() === "e") {
                 event.preventDefault();
                 setEditMode(!editMode);
@@ -480,10 +490,10 @@
         });
 
         document.addEventListener("keyup", (event) => {
-            if (event.key === "Shift") document.body.classList.remove("shift-held");
+            if (event.key === "Shift") setShiftHeld(false);
         });
 
-        window.addEventListener("blur", () => document.body.classList.remove("shift-held"));
+        window.addEventListener("blur", () => setShiftHeld(false));
 
         document.getElementById("emoji-picker-toggle").addEventListener("click", () => {
             const picker = document.getElementById("emoji-picker-options");

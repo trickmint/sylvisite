@@ -213,6 +213,7 @@ input:focus-visible, .emoji-picker-toggle:focus-visible, .emoji-option:focus-vis
 .category summary::marker { color: var(--pink); }
 .category-title { display: flex; align-items: center; gap: 9px; }
 .drag-handle { display: none; color: var(--muted); font-size: 1.2rem; user-select: none; }
+.drag-handle[hidden], .category-move-button[hidden] { display: none !important; }
 body.edit-mode .drag-handle { display: inline; }
 .category[draggable="true"] summary { cursor: grab; }
 .category[draggable="true"] summary:active { cursor: grabbing; }
