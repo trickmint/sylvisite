@@ -359,6 +359,7 @@
         const isBirthday = today.getMonth() === 10 && today.getDate() === 29;
         document.getElementById("welcome").textContent = isBirthday ? "hbd, sylvie!!!" : "hi sylvie!";
         menuMusic.src = isBirthday ? "assets/wii_u_menu-birthday.mp3" : "assets/wii_u_menu-in_use.mp3";
+        menuMusic.volume = 0.1;
         const savedMuteState = localStorage.getItem(musicStorageKey) === "true";
         setMusicState(savedMuteState);
         menuMusic.play().catch(() => {
