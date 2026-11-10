@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#330d2f">
-    <title>/go — home</title>
+    <title>/go/ - launchpad</title>
     <link rel="stylesheet" href="style.css">
     <link rel="icon" type="image/x-icon" href="../favicon.ico">
 </head>
@@ -24,8 +24,8 @@
                     <span aria-hidden="true" id="music-icon">○</span>
                     <span id="music-label">music</span>
                 </button>
-                <button class="icon-button" id="manage-launchers" type="button">
-                    <span aria-hidden="true">＋</span> manage launchers
+                <button class="icon-button" id="edit-launchers" type="button" aria-pressed="false">
+                    <span aria-hidden="true">✎</span> <span id="edit-launchers-label">edit launchers</span>
                 </button>
             </div>
         </header>
@@ -67,13 +67,14 @@
             </label>
             <label>
                 Link
-                <input id="launcher-url" name="url" type="url" required placeholder="steam://rungameid/...">
+                <input id="launcher-url" name="url" type="text" inputmode="url" required placeholder="example.com or steam://rungameid/...">
             </label>
             <p class="field-help">Steam links work when Steam is installed. You can also use regular https:// links.</p>
             <div class="form-row">
                 <label>
                     Category
-                    <input id="launcher-category" name="category" type="text" maxlength="30" required placeholder="games">
+                    <input id="launcher-category" name="category" type="text" maxlength="30" required list="category-suggestions" placeholder="games">
+                    <datalist id="category-suggestions"></datalist>
                 </label>
                 <label>
                     Icon
@@ -110,6 +111,8 @@
             }
         ];
         const launcherStorageKey = "sylvisite-go-launchers";
+        const categoryOrderStorageKey = "sylvisite-go-category-order";
+        const favoriteOrderStorageKey = "sylvisite-go-favorite-order";
         const musicStorageKey = "sylvisite-go-music-muted";
         const launcherIcons = [
             "🌟", "🎮", "🕹️", "👾", "🎲", "🧩", "🏆", "⚔️", "🛡️", "🚀",
@@ -125,6 +128,9 @@
         const form = document.getElementById("launcher-form");
         let emojiPickerRendered = false;
         let launchers = loadLaunchers();
+        let categoryOrder = loadCategoryOrder();
+        let favoriteOrder = loadFavoriteOrder();
+        let editMode = false;
 
         function loadLaunchers() {
             try {
@@ -138,6 +144,74 @@
 
         function saveLaunchers() {
             localStorage.setItem(launcherStorageKey, JSON.stringify(launchers));
+        }
+
+        function loadCategoryOrder() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(categoryOrderStorageKey));
+                return Array.isArray(saved) ? saved : [];
+            } catch (error) {
+                console.warn("Could not load saved category order.", error);
+                return [];
+            }
+        }
+
+        function saveCategoryOrder() {
+            localStorage.setItem(categoryOrderStorageKey, JSON.stringify(categoryOrder));
+        }
+
+        function loadFavoriteOrder() {
+            try {
+                const saved = JSON.parse(localStorage.getItem(favoriteOrderStorageKey));
+                return Array.isArray(saved) ? saved : [];
+            } catch (error) {
+                console.warn("Could not load saved favorite order.", error);
+                return [];
+            }
+        }
+
+        function saveFavoriteOrder() {
+            localStorage.setItem(favoriteOrderStorageKey, JSON.stringify(favoriteOrder));
+        }
+
+        function getOrderedFavorites() {
+            const favoriteIds = launchers.filter((launcher) => launcher.favorite).map((launcher) => launcher.id);
+            const savedFavorites = favoriteOrder.filter((id) => favoriteIds.includes(id));
+            const newFavorites = favoriteIds.filter((id) => !savedFavorites.includes(id));
+            favoriteOrder = [...savedFavorites, ...newFavorites];
+            saveFavoriteOrder();
+            return favoriteOrder
+                .map((id) => launchers.find((launcher) => launcher.id === id))
+                .filter(Boolean);
+        }
+
+        function setEditMode(enabled) {
+            editMode = enabled;
+            document.body.classList.toggle("edit-mode", editMode);
+            const editButton = document.getElementById("edit-launchers");
+            editButton.setAttribute("aria-pressed", String(editMode));
+            document.getElementById("edit-launchers-label").textContent = editMode ? "done editing" : "edit launchers";
+            renderLaunchers();
+        }
+
+        function getOrderedCategories(grouped) {
+            const currentCategories = Object.keys(grouped);
+            const savedCategories = categoryOrder.filter((category) => currentCategories.includes(category));
+            const newCategories = currentCategories
+                .filter((category) => !savedCategories.includes(category))
+                .sort((a, b) => a.localeCompare(b));
+            categoryOrder = [...savedCategories, ...newCategories];
+            saveCategoryOrder();
+            return categoryOrder;
+        }
+
+        function renderCategorySuggestions(categories) {
+            const suggestions = document.getElementById("category-suggestions");
+            suggestions.replaceChildren(...categories.map((category) => {
+                const option = document.createElement("option");
+                option.value = category;
+                return option;
+            }));
         }
 
         function renderEmojiPicker() {
@@ -168,9 +242,13 @@
             });
         }
 
-        function makeLauncherCard(launcher) {
+        function makeLauncherCard(launcher, inFavorites = false) {
             const card = document.createElement("article");
             card.className = "launcher-card";
+            if (editMode && inFavorites) {
+                card.draggable = true;
+                card.dataset.favoriteId = launcher.id;
+            }
             card.innerHTML = `
                 <a href="${escapeAttribute(launcher.url)}">
                     <span class="launcher-icon" aria-hidden="true">${escapeHtml(launcherIcons.includes(launcher.icon) ? launcher.icon : "🌟")}</span>
@@ -186,8 +264,8 @@
 
         function renderLaunchers() {
             const favoritesGrid = document.getElementById("favorites-grid");
-            const favorites = launchers.filter((launcher) => launcher.favorite);
-            favoritesGrid.replaceChildren(...favorites.map(makeLauncherCard));
+            const favorites = getOrderedFavorites();
+            favoritesGrid.replaceChildren(...favorites.map((launcher) => makeLauncherCard(launcher, true)));
             document.getElementById("favorite-count").textContent = favorites.length;
             document.getElementById("favorites-empty").hidden = favorites.length > 0;
 
@@ -197,32 +275,73 @@
                 (groups[category] ||= []).push(launcher);
                 return groups;
             }, {});
-            const sortedCategories = Object.entries(grouped).sort(([a], [b]) => a.localeCompare(b));
-            categories.replaceChildren(...sortedCategories.map(([category, items], categoryIndex) => {
+            const orderedCategories = getOrderedCategories(grouped);
+            renderCategorySuggestions(orderedCategories);
+            categories.replaceChildren(...orderedCategories.map((category) => {
+                const items = grouped[category];
                 const section = document.createElement("details");
                 section.className = "category";
                 section.open = true;
-                section.innerHTML = `<summary><span>${escapeHtml(category)}</span><span class="category-count">${items.length}</span></summary>`;
+                section.draggable = editMode;
+                section.dataset.category = category;
+                section.innerHTML = `
+                    <summary>
+                        <span class="category-title"><span class="drag-handle" aria-hidden="true">⠿</span>${escapeHtml(category)}</span>
+                        <span class="category-actions">
+                            <button class="category-move-button" type="button" data-category-action="up" aria-label="Move ${escapeAttribute(category)} up">↑</button>
+                            <button class="category-move-button" type="button" data-category-action="down" aria-label="Move ${escapeAttribute(category)} down">↓</button>
+                            <span class="category-count">${items.length}</span>
+                        </span>
+                    </summary>`;
                 const grid = document.createElement("div");
                 grid.className = "launcher-grid category-grid";
                 grid.append(...items.map(makeLauncherCard));
-                if (categoryIndex === sortedCategories.length - 1) {
-                    grid.append(makeAddLauncherButton());
-                }
+                grid.append(makeAddLauncherButton(category));
                 section.append(grid);
                 return section;
             }));
-            if (sortedCategories.length === 0) categories.append(makeAddLauncherButton());
+            if (orderedCategories.length === 0) categories.append(makeAddLauncherButton());
         }
 
-        function makeAddLauncherButton() {
+        function makeAddLauncherButton(category) {
             const button = document.createElement("button");
             button.className = "add-launcher-button";
             button.type = "button";
             button.setAttribute("aria-label", "Add launcher");
             button.textContent = "+";
-            button.addEventListener("click", () => openEditor());
+            button.addEventListener("click", () => openEditor(undefined, category));
             return button;
+        }
+
+        function moveCategory(category, direction) {
+            const index = categoryOrder.indexOf(category);
+            const targetIndex = index + direction;
+            if (index < 0 || targetIndex < 0 || targetIndex >= categoryOrder.length) return;
+            [categoryOrder[index], categoryOrder[targetIndex]] = [categoryOrder[targetIndex], categoryOrder[index]];
+            saveCategoryOrder();
+            renderLaunchers();
+        }
+
+        function finishCategoryDrag(target, source) {
+            if (!source || !target || source === target) return;
+            const sourceIndex = categoryOrder.indexOf(source);
+            const targetIndex = categoryOrder.indexOf(target);
+            if (sourceIndex < 0 || targetIndex < 0) return;
+            categoryOrder.splice(sourceIndex, 1);
+            categoryOrder.splice(targetIndex, 0, source);
+            saveCategoryOrder();
+            renderLaunchers();
+        }
+
+        function finishFavoriteDrag(targetId, sourceId) {
+            if (!sourceId || !targetId || sourceId === targetId) return;
+            const sourceIndex = favoriteOrder.indexOf(sourceId);
+            const targetIndex = favoriteOrder.indexOf(targetId);
+            if (sourceIndex < 0 || targetIndex < 0) return;
+            favoriteOrder.splice(sourceIndex, 1);
+            favoriteOrder.splice(targetIndex, 0, sourceId);
+            saveFavoriteOrder();
+            renderLaunchers();
         }
 
         function escapeHtml(value) {
@@ -235,14 +354,14 @@
             return escapeHtml(value).replace(/"/g, "&quot;");
         }
 
-        function openEditor(launcher) {
+        function openEditor(launcher, category) {
             form.reset();
             document.getElementById("emoji-picker-options").classList.remove("is-open");
             document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", "false");
             document.getElementById("launcher-id").value = launcher?.id || "";
             document.getElementById("launcher-name").value = launcher?.name || "";
             document.getElementById("launcher-url").value = launcher?.url || "";
-            document.getElementById("launcher-category").value = launcher?.category || "games";
+            document.getElementById("launcher-category").value = launcher?.category || category || "games";
             const icon = launcherIcons.includes(launcher?.icon) ? launcher.icon : "🌟";
             setSelectedIcon(icon);
             document.getElementById("launcher-favorite").checked = launcher?.favorite || false;
@@ -272,6 +391,14 @@
                 document.getElementById("emoji-picker-options").classList.remove("is-open");
                 document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", "false");
             }
+            const categoryButton = event.target.closest("[data-category-action]");
+            if (categoryButton && editMode) {
+                event.preventDefault();
+                event.stopPropagation();
+                const category = categoryButton.closest(".category").dataset.category;
+                moveCategory(category, categoryButton.dataset.categoryAction === "up" ? -1 : 1);
+                return;
+            }
             const editButton = event.target.closest("[data-action='edit']");
             if (editButton) {
                 const launcher = launchers.find((item) => item.id === editButton.dataset.id);
@@ -287,13 +414,84 @@
             renderLaunchers();
         });
 
+        document.addEventListener("dragstart", (event) => {
+            const favorite = event.target.closest("[data-favorite-id]");
+            if (editMode && favorite) {
+                event.dataTransfer.effectAllowed = "move";
+                event.dataTransfer.setData("text/favorite-id", favorite.dataset.favoriteId);
+                favorite.classList.add("is-dragging");
+                return;
+            }
+            const category = event.target.closest(".category");
+            if (!editMode || !category) return;
+            event.dataTransfer.effectAllowed = "move";
+            event.dataTransfer.setData("text/plain", category.dataset.category);
+            category.classList.add("is-dragging");
+        });
+
+        document.addEventListener("dragover", (event) => {
+            const favorite = event.target.closest("[data-favorite-id]");
+            if (editMode && favorite) {
+                event.preventDefault();
+                favorite.classList.add("is-drag-over");
+                return;
+            }
+            const category = event.target.closest(".category");
+            if (!editMode || !category) return;
+            event.preventDefault();
+            category.classList.add("is-drag-over");
+        });
+
+        document.addEventListener("dragleave", (event) => {
+            const favorite = event.target.closest("[data-favorite-id]");
+            if (favorite && !favorite.contains(event.relatedTarget)) favorite.classList.remove("is-drag-over");
+            const category = event.target.closest(".category");
+            if (editMode && category && !category.contains(event.relatedTarget)) category.classList.remove("is-drag-over");
+        });
+
+        document.addEventListener("drop", (event) => {
+            const favorite = event.target.closest("[data-favorite-id]");
+            if (editMode && favorite) {
+                event.preventDefault();
+                finishFavoriteDrag(favorite.dataset.favoriteId, event.dataTransfer.getData("text/favorite-id"));
+                return;
+            }
+            const category = event.target.closest(".category");
+            if (!editMode || !category) return;
+            event.preventDefault();
+            finishCategoryDrag(category.dataset.category, event.dataTransfer.getData("text/plain"));
+        });
+
+        document.addEventListener("dragend", () => {
+            document.querySelectorAll("[data-favorite-id]").forEach((favorite) => {
+                favorite.classList.remove("is-dragging", "is-drag-over");
+            });
+            document.querySelectorAll(".category").forEach((category) => {
+                category.classList.remove("is-dragging", "is-drag-over");
+            });
+        });
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "Shift") document.body.classList.add("shift-held");
+            if (!event.repeat && event.shiftKey && event.key.toLowerCase() === "e") {
+                event.preventDefault();
+                setEditMode(!editMode);
+            }
+        });
+
+        document.addEventListener("keyup", (event) => {
+            if (event.key === "Shift") document.body.classList.remove("shift-held");
+        });
+
+        window.addEventListener("blur", () => document.body.classList.remove("shift-held"));
+
         document.getElementById("emoji-picker-toggle").addEventListener("click", () => {
             const picker = document.getElementById("emoji-picker-options");
             renderEmojiPicker();
             const isOpen = picker.classList.toggle("is-open");
             document.getElementById("emoji-picker-toggle").setAttribute("aria-expanded", String(isOpen));
         });
-        document.getElementById("manage-launchers").addEventListener("click", () => openEditor());
+        document.getElementById("edit-launchers").addEventListener("click", () => setEditMode(!editMode));
         document.getElementById("cancel-dialog").addEventListener("click", closeEditor);
         document.getElementById("close-dialog").addEventListener("click", closeEditor);
         dialog.addEventListener("click", (event) => {
@@ -304,7 +502,8 @@
             event.preventDefault();
             const id = document.getElementById("launcher-id").value || `launcher-${Date.now()}`;
             const name = document.getElementById("launcher-name").value.trim();
-            const url = document.getElementById("launcher-url").value.trim();
+            const enteredUrl = document.getElementById("launcher-url").value.trim();
+            const url = /^[a-z][a-z\d+\-.]*:/i.test(enteredUrl) ? enteredUrl : `https://${enteredUrl}`;
             const category = document.getElementById("launcher-category").value.trim();
             const urlIsAllowed = /^(https?:|steam:)/i.test(url);
             if (!name || !category || !urlIsAllowed) {

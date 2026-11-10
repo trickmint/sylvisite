@@ -159,6 +159,10 @@ input:focus-visible, .emoji-picker-toggle:focus-visible, .emoji-option:focus-vis
     transition: transform 0.2s, border-color 0.2s, background 0.2s;
 }
 .launcher-card:hover { background: var(--panel-bright); transform: translateY(-4px); }
+.favorites-section .launcher-card[draggable="true"] { cursor: grab; }
+.favorites-section .launcher-card[draggable="true"]:active { cursor: grabbing; }
+.launcher-card.is-dragging { opacity: 0.55; }
+.launcher-card.is-drag-over { background: var(--panel-bright); }
 .launcher-card a {
     display: flex;
     min-height: 84px;
@@ -203,8 +207,28 @@ input:focus-visible, .emoji-picker-toggle:focus-visible, .emoji-option:focus-vis
 .favorite-button.is-favorite { color: var(--pink); }
 .empty-state { padding: 20px; border-radius: 14px; color: var(--muted); background: rgba(51, 13, 47, 0.35); }
 .category { margin: 12px 0; overflow: hidden; border-radius: 14px; background: rgba(51, 13, 47, 0.35); }
-.category summary { display: flex; justify-content: space-between; padding: 15px 18px; cursor: pointer; color: var(--pink); font-weight: bold; }
+.category.is-dragging { opacity: 0.55; }
+.category.is-drag-over { background: var(--panel-bright); }
+.category summary { display: flex; justify-content: space-between; padding: 15px 18px; color: var(--pink); font-weight: bold; }
 .category summary::marker { color: var(--pink); }
+.category-title { display: flex; align-items: center; gap: 9px; }
+.drag-handle { display: none; color: var(--muted); font-size: 1.2rem; user-select: none; }
+body.edit-mode .drag-handle { display: inline; }
+.category[draggable="true"] summary { cursor: grab; }
+.category[draggable="true"] summary:active { cursor: grabbing; }
+.category-actions { display: flex; align-items: center; gap: 5px; }
+.category-move-button {
+    display: none;
+    width: 25px;
+    height: 25px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    color: var(--muted);
+    background: rgba(51, 13, 47, 0.45);
+}
+body.shift-held .category-move-button { display: inline-grid; place-items: center; }
+.category-move-button:hover { color: var(--pink); background: rgba(51, 13, 47, 0.75); }
 .category-grid { padding: 0 12px 12px; }
 .add-launcher-button {
     min-height: 84px;
